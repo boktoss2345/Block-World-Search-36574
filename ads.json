@@ -22,13 +22,17 @@
   },
   "ads": [
     {
-      "id": "capcut_image_01",
+      "id": "video_7476",
       "enabled": true,
       "elements": [
         {
-          "type": "image",
+          "type": "video",
           "enabled": true,
-          "src": "https://boktoss2345.github.io/Cap-Video-Editor-Make-Video-Maker-Editing/assets/image63454.png",
+          "src": "https://boktoss2345.github.io/Block-World-Search-36574/assets/video7476.mp4",
+          "autoplay": true,
+          "loop": true,
+          "muted": true,
+          "controls": false,
           "widthPercent": 94,
           "maxWidthDp": 760,
           "contentScale": "fit",
@@ -39,7 +43,7 @@
         {
           "type": "button",
           "enabled": true,
-          "text": "DOWNLOAD\nCapCut Video Editor",
+          "text": "DOWNLOAD",
           "widthPercent": 82,
           "maxWidthDp": 420,
           "marginDp": 12,
@@ -62,13 +66,13 @@
       ]
     },
     {
-      "id": "capcut_video_02",
+      "id": "video_65845",
       "enabled": true,
       "elements": [
         {
           "type": "video",
           "enabled": true,
-          "src": "https://boktoss2345.github.io/Cap-Video-Editor-Make-Video-Maker-Editing/assets/videos12456.mp4",
+          "src": "https://boktoss2345.github.io/Block-World-Search-36574/assets/video65845.mp4",
           "autoplay": true,
           "loop": true,
           "muted": true,
@@ -83,7 +87,7 @@
         {
           "type": "button",
           "enabled": true,
-          "text": "DOWNLOAD\nCapcut Without Ads",
+          "text": "DOWNLOAD",
           "widthPercent": 82,
           "maxWidthDp": 420,
           "marginDp": 12,
@@ -106,13 +110,17 @@
       ]
     },
     {
-      "id": "capcut_image_03",
+      "id": "video_74846",
       "enabled": true,
       "elements": [
         {
-          "type": "image",
+          "type": "video",
           "enabled": true,
-          "src": "https://boktoss2345.github.io/Cap-Video-Editor-Make-Video-Maker-Editing/assets/images5646.png",
+          "src": "https://boktoss2345.github.io/Block-World-Search-36574/assets/video74846.mp4",
+          "autoplay": true,
+          "loop": true,
+          "muted": true,
+          "controls": false,
           "widthPercent": 82,
           "maxWidthDp": 420,
           "contentScale": "fit",
@@ -123,7 +131,7 @@
         {
           "type": "button",
           "enabled": true,
-          "text": "DOWNLOAD\nCapcut Without Ads",
+          "text": "DOWNLOAD",
           "widthPercent": 82,
           "maxWidthDp": 420,
           "marginDp": 12,
