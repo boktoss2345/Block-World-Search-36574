@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a1035">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Block World Search</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: radial-gradient(circle at 50% -10%, #3b2a7d 0%, #1d1240 45%, #0a0820 100%);
+    background-attachment: fixed;
+    color: #eef1ff;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    -webkit-text-size-adjust: 100%;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+  }
+
+  button {
+    font-family: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* ---------------- Layout ---------------- */
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  /* ---------------- HUD ---------------- */
+  #hud {
+    flex: 0 0 auto;
+    background: linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.035));
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 18px;
+    padding: 8px 10px;
+    box-shadow: 0 6px 22px rgba(0,0,0,.3);
+  }
+
+  .hud-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .brand {
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: .4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #ffd166;
+    background: linear-gradient(90deg, #ffd166, #ff70a6 55%, #4cc9f0);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hud-actions {
+    display: flex;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.18);
+    background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.06));
+    color: #fff;
+    font-size: 17px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform .1s ease, background .15s ease;
+    padding: 0;
+  }
+  .icon-btn:active { transform: scale(.9); }
+  .icon-btn:focus { outline: 3px solid #6ee7ff; outline-offset: 2px; }
+
+  .stats {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .stat {
+    flex: 1 1 0;
+    min-width: 0;
+    background: rgba(0,0,0,.26);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 12px;
+    padding: 4px 4px;
+    text-align: center;
+  }
+
+  .stat .lbl {
+    display: block;
+    font-size: 9px;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    opacity: .6;
+    white-space: nowrap;
+  }
+
+  .stat .val {
+    display: block;
+    font-size: 14px;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #fff;
+  }
+
+  /* ---------------- Board ---------------- */
+  #main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  #boardArea {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  #gridWrap {
+    position: relative;
+    touch-action: none;
+  }
+
+  #grid {
+    position: relative;
+    touch-action: none;
+  }
+
+  .cell {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, rgba(255,255,255,.17), rgba(255,255,255,.05));
+    border: 1px solid rgba(255,255,255,.10);
+    color: #e9eeff;
+    font-weight: 700;
+    line-height: 1;
+    overflow: hidden;
+    transition: background .12s ease, transform .12s ease, color .12s ease, box-shadow .12s ease;
+  }
+
+  .cell.sel {
+    background: linear-gradient(180deg, #ffe08a, #ffb703);
+    color: #2a1a00;
+    transform: scale(1.06);
+    box-shadow: 0 0 14px rgba(255,196,60,.8);
+    z-index: 3;
+  }
+
+  .cell.found {
+    color: #141433;
+    border-color: rgba(0,0,0,.18);
+    z-index: 2;
+  }
+
+  .cell.wrong {
+    background: linear-gradient(180deg, #ff8a9b, #e63c56) !important;
+    color: #fff !important;
+    z-index: 3;
+  }
+
+  .cell.hintPulse {
+    animation: hintPulse 1s ease-in-out 2;
+    z-index: 4;
+  }
+
+  @keyframes hintPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(110,231,255,0); }
+    50%      { box-shadow: 0 0 0 7px rgba(110,231,255,.85); }
+  }
+
+  .cell.pop { animation: pop .32s ease; }
+
+  @keyframes pop {
+    0%   { transform: scale(1); }
+    45%  { transform: scale(1.28); }
+    100% { transform: scale(1); }
+  }
+
+  .cell.cursor {
+    outline: 3px solid #6ee7ff;
+    outline-offset: 1px;
+    z-index: 6;
+  }
+
+  #selLine {
+    position: absolute;
+    height: 10px;
+    border-radius: 6px;
+    background: rgba(255,209,102,.9);
+    box-shadow: 0 0 14px rgba(255,209,102,.75);
+    display: none;
+    pointer-events: none;
+    transform-origin: 0 50%;
+  }
+
+  /* ---------------- Words ---------------- */
+  #sidePanel {
+    flex: 0 0 auto;
+    max-height: 22vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 2px;
+  }
+
+  #wordList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+  }
+
+  .word {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.09);
+    border: 1px solid rgba(255,255,255,.14);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .6px;
+    transition: all .22s ease;
+    white-space: nowrap;
+  }
+
+  .word .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    box-shadow: 0 0 6px rgba(255,255,255,.25);
+  }
+
+  .word.done {
+    opacity: .42;
+    text-decoration: line-through;
+    background: rgba(255,255,255,.04);
+    border-color: rgba(255,255,255,.07);
+  }
+
+  /* ---------------- Controls ---------------- */
+  #controls {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 7px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    border: 1px solid rgba(255,255,255,.18);
+    background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.06));
+    color: #fff;
+    font-weight: 800;
+    font-size: 13px;
+    padding: 10px 13px;
+    border-radius: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 42px;
+    transition: transform .1s ease, filter .15s ease, opacity .15s ease;
+    white-space: nowrap;
+  }
+
+  .btn:active { transform: scale(.95); }
+  .btn:disabled { opacity: .38; cursor: default; }
+  .btn:focus { outline: 3px solid #6ee7ff; outline-offset: 2px; }
+
+  .btn.primary {
+    background: linear-gradient(180deg, #ffd166, #f59f00);
+    color: #2a1a00;
+    border-color: rgba(255,255,255,.4);
+  }
+
+  .btn.ghost {
+    background: rgba(255,255,255,.06);
+  }
+
+  /* ---------------- Modals ---------------- */
+  .modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(6,4,22,.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+    z-index: 100;
+  }
+
+  .modal.show { display: flex; }
+
+  .modal-card {
+    width: 100%;
+    max-width: 430px;
+    max-height: 88vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: linear-gradient(165deg, #33266e, #171036 72%);
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 22px;
+    padding: 18px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.7);
+    text-align: center;
+    animation: cardIn .3s cubic-bezier(.2,.9,.3,1.35);
+  }
+
+  @keyframes cardIn {
+    from { transform: scale(.86); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+
+  .modal-card h2 {
+    margin: 0 0 12px;
+    font-size: 21px;
+    letter-spacing: 1.2px;
+    color: #ffd166;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+
+  .confetti { font-size: 34px; margin-bottom: 4px; }
+
+  .stars {
+    font-size: 26px;
+    color: #ffd166;
+    letter-spacing: 5px;
+    margin-bottom: 8px;
+    text-shadow: 0 0 14px rgba(255,209,102,.6);
+  }
+
+  .rows { margin: 12px 0 4px; }
+
+  .row {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px 4px;
+    font-size: 14px;
+    border-bottom: 1px dashed rgba(255,255,255,.12);
+  }
+
+  .row.total {
+    font-size: 17px;
+    font-weight: 900;
+    border-bottom: none;
+    color: #ffd166;
+  }
+
+  .level-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+    gap: 8px;
+    margin: 10px 0 4px;
+  }
+
+  .level-btn {
+    height: 52px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.18);
+    background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.05));
+    color: #fff;
+    font-weight: 800;
+    font-size: 15px;
+    cursor: pointer;
+    padding: 0;
+    transition: transform .1s ease;
+  }
+
+  .level-btn:active { transform: scale(.93); }
+  .level-btn:focus { outline: 3px solid #6ee7ff; outline-offset: 2px; }
+  .level-btn.locked { opacity: .3; cursor: default; }
+  .level-btn.current {
+    background: linear-gradient(180deg, #ffd166, #f59f00);
+    color: #2a1a00;
+    border-color: rgba(255,255,255,.4);
+  }
+
+  /* ---------------- Landscape / wide ---------------- */
+  @media (orientation: landscape) and (min-width: 640px) {
+    #main { flex-direction: row; }
+    #sidePanel {
+      max-height: none;
+      width: 210px;
+      flex: 0 0 210px;
+      overflow-y: auto;
+    }
+    #wordList {
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+    }
+    .word { justify-content: flex-start; }
+    #hud { padding: 7px 10px; }
+    .stats { margin-top: 6px; }
+  }
+
+  @media (max-width: 380px) {
+    .brand { font-size: 15px; }
+    .btn { font-size: 12px; padding: 9px 10px; }
+    .word { font-size: 12px; padding: 4px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header id="hud">
+    <div class="hud-top">
+      <div class="brand">Block World Search</div>
+      <div class="hud-actions">
+        <button class="icon-btn" id="btnSound" type="button" title="Sound">&#128266;</button>
+        <button class="icon-btn" id="btnPause" type="button" title="Pause">&#10074;&#10074;</button>
+        <button class="icon-btn" id="btnHome" type="button" title="Levels">&#127968;</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="lbl">Level</span><span class="val" id="statLevel">1</span></div>
+      <div class="stat"><span class="lbl">Score</span><span class="val" id="statScore">0</span></div>
+      <div class="stat"><span class="lbl">Best</span><span class="val" id="statBest">0</span></div>
+      <div class="stat"><span class="lbl">Category</span><span class="val" id="statCat">-</span></div>
+    </div>
+  </header>
+
+  <div id="main">
+    <div id="boardArea">
+      <div id="gridWrap">
+        <div id="selLine"></div>
+        <div id="grid"></div>
+      </div>
+    </div>
+    <div id="sidePanel">
+      <div id="wordList"></div>
+    </div>
+  </div>
+
+  <footer id="controls">
+    <button class="btn" id="btnHint" type="button">&#128161; Hint <span id="hintCount">3</span></button>
+    <button class="btn" id="btnShuffle" type="button">&#128256; Shuffle</button>
+    <button class="btn" id="btnRestart" type="button">&#8635; Restart</button>
+    <button class="btn ghost" id="btnLevels" type="button">&#9776; Levels</button>
+  </footer>
+</div>
+
+<!-- Pause modal -->
+<div class="modal" id="modalPause">
+  <div class="modal-card">
+    <h2>PAUSED</h2>
+    <div class="modal-actions">
+      <button class="btn primary" id="btnResume" type="button">Resume</button>
+      <button class="btn" id="btnPauseRestart" type="button">Restart</button>
+      <button class="btn" id="btnPauseSound" type="button">Sound: On</button>
+      <button class="btn ghost" id="btnPauseLevels" type="button">Levels</button>
+    </div>
+  </div>
+</div>
+
+<!-- Level complete modal -->
+<div class="modal" id="modalComplete">
+  <div class="modal-card">
+    <div class="confetti">&#127881;</div>
+    <h2>LEVEL COMPLETE!</h2>
+    <div class="stars" id="ccStars">&#9733;&#9733;&#9733;</div>
+    <div class="rows">
+      <div class="row"><span>Words Score</span><span id="ccWords">0</span></div>
+      <div class="row"><span>Time Bonus</span><span id="ccTime">0</span></div>
+      <div class="row"><span>No-Hint Bonus</span><span id="ccHint">0</span></div>
+      <div class="row total"><span>Level Score</span><span id="ccTotal">0</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="ccReplay" type="button">Replay</button>
+      <button class="btn primary" id="ccNext" type="button">Next Level</button>
+    </div>
+  </div>
+</div>
+
+<!-- Levels modal -->
+<div class="modal" id="modalLevels">
+  <div class="modal-card">
+    <h2>SELECT LEVEL</h2>
+    <div class="level-grid" id="levelGrid"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="btnCloseLevels" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =========================================================
+     DATA
+     ========================================================= */
+  var BANKS = {
+    Animals: ['CAT','DOG','LION','BEAR','FISH','BIRD','WOLF','FROG','HORSE','TIGER','ZEBRA','PANDA','SNAKE','EAGLE','MOUSE','RABBIT','MONKEY','TURTLE','DOLPHIN','PENGUIN','CAMEL','OTTER','KOALA','LEOPARD'],
+    Fruits: ['APPLE','MANGO','PEAR','GRAPE','LEMON','BANANA','PEACH','PLUM','CHERRY','ORANGE','MELON','BERRY','KIWI','FIG','DATE','APRICOT','COCONUT','PAPAYA','LIME','GUAVA'],
+    Food: ['BREAD','RICE','PIZZA','PASTA','SALAD','SOUP','CAKE','CHEESE','BUTTER','HONEY','SUGAR','SALT','NOODLE','BURGER','TACO','SUSHI','WAFFLE','PANCAKE','COOKIE','YOGURT'],
+    Nature: ['TREE','RIVER','FLOWER','GRASS','CLOUD','RAIN','STORM','VALLEY','FOREST','DESERT','ISLAND','MEADOW','CANYON','GLACIER','MOUNTAIN','SPRING','SUMMER','WINTER','AUTUMN','BREEZE'],
+    Ocean: ['WAVE','CORAL','SHARK','WHALE','OCTOPUS','SEAWEED','SHELL','TIDE','REEF','DOLPHIN','ANCHOR','LAGOON','CURRENT','MARINE','PLANKTON','SEAHORSE','STINGRAY','JELLYFISH','ISLAND','HARBOR'],
+    Space: ['STAR','MOON','SUN','COMET','PLANET','GALAXY','ORBIT','ROCKET','METEOR','NEBULA','SATURN','MARS','VENUS','COSMOS','ASTEROID','ECLIPSE','JUPITER','MERCURY','NEPTUNE','SHUTTLE'],
+    Sports: ['BALL','GOAL','TEAM','COACH','SCORE','RACE','MATCH','TENNIS','SOCCER','HOCKEY','BOXING','KARATE','RUGBY','CRICKET','SKIING','CYCLING','SURFING','ROWING','JUDO','ARCHERY'],
+    School: ['BOOK','PEN','DESK','CLASS','TEACHER','STUDENT','PENCIL','PAPER','LESSON','LIBRARY','HOMEWORK','SUBJECT','RULER','ERASER','BACKPACK','NOTEBOOK','SCIENCE','HISTORY','MATH','MUSIC'],
+    Technology: ['PHONE','LAPTOP','SCREEN','MOUSE','KEYBOARD','INTERNET','ROBOT','CODE','DATA','PIXEL','SERVER','CABLE','DEVICE','BATTERY','CAMERA','MONITOR','PRINTER','SOFTWARE','NETWORK','DIGITAL'],
+    Music: ['SONG','PIANO','GUITAR','DRUM','VIOLIN','MELODY','RHYTHM','CHORD','BAND','NOTE','FLUTE','TRUMPET','SINGER','ALBUM','STAGE','CONCERT','HARMONY','TEMPO','LYRICS','ORCHESTRA'],
+    Cars: ['WHEEL','ENGINE','BRAKE','DRIVER','ROAD','TRUCK','SEDAN','MOTOR','GARAGE','SPEED','CLUTCH','BUMPER','TRAFFIC','HIGHWAY','PETROL','DIESEL','COUPE','WAGON','RACING','MIRROR'],
+    Countries: ['FRANCE','BRAZIL','CANADA','EGYPT','INDIA','JAPAN','KENYA','MEXICO','NORWAY','PERU','SPAIN','ITALY','CHINA','GREECE','SWEDEN','POLAND','TURKEY','VIETNAM','MOROCCO','ICELAND'],
+    Colors: ['RED','BLUE','GREEN','YELLOW','PURPLE','ORANGE','PINK','BROWN','BLACK','WHITE','GRAY','VIOLET','INDIGO','MAROON','GOLD','SILVER','TEAL','CORAL','BEIGE','CRIMSON'],
+    Home: ['CHAIR','TABLE','SOFA','BED','DOOR','WINDOW','LAMP','RUG','CLOCK','SHELF','MIRROR','KITCHEN','GARDEN','FENCE','ROOF','PILLOW','CURTAIN','CARPET','STOOL','CABINET'],
+    Travel: ['PLANE','TRAIN','HOTEL','BEACH','MAP','TICKET','SUITCASE','PASSPORT','CAMERA','JOURNEY','AIRPORT','ISLAND','CRUISE','TOURIST','LUGGAGE','VOYAGE','HARBOR','COMPASS','VACATION','EXPLORE']
+  };
+
+  var DIRV = {
+    E: [0, 1], W: [0, -1], S: [1, 0], N: [-1, 0],
+    SE: [1, 1], SW: [1, -1], NE: [-1, 1], NW: [-1, -1]
+  };
+
+  var ALL_DIRS = ['E', 'S', 'W', 'N', 'SE', 'SW', 'NE', 'NW'];
+  var LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  var COLORS = ['#ffd166','#06d6a0','#ef476f','#4cc9f0','#b388ff','#ff9f1c','#2ec4b6','#f72585','#8ac926','#ff70a6','#00bbf9','#fee440','#a3e635','#fb923c'];
+  var LEVEL_COUNT = 60;
+  var MAX_HINTS = 3;
+
+  /* =========================================================
+     HELPERS
+     ========================================================= */
+  function $(id) { return document.getElementById(id); }
+
+  function num(v) {
+    return (typeof v === 'number' && isFinite(v)) ? v : 0;
+  }
+
+  function clampInt(v, lo, hi) {
+    v = parseInt(v, 10);
+    if (!isFinite(v)) v = lo;
+    if (v < lo) v = lo;
+    if (v > hi) v = hi;
+    return v;
+  }
+
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function randLetter() {
+    return LETTERS.charAt(Math.floor(Math.random() * LETTERS.length));
+  }
+
+  var store = {
+    get: function (k, d) {
+      try {
+        var v = window.localStorage.getItem('bws_' + k);
+        if (v === null || typeof v === 'undefined') return d;
+        return JSON.parse(v);
+      } catch (e) { return d; }
+    },
+    set: function (k, v) {
+      try { window.localStorage.setItem('bws_' + k, JSON.stringify(v)); } catch (e) {}
+    }
+  };
+
+  /* =========================================================
+     AUDIO
+     ========================================================= */
+  var actx = null;
+
+  function getAudio() {
+    if (actx) return actx;
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      actx = new AC();
+    } catch (e) { actx = null; }
+    return actx;
+  }
+
+  function tone(freq, dur, type, vol) {
+    if (!state.sound) return;
+    var ctx = getAudio();
+    if (!ctx) return;
+    try {
+      if (ctx.state === 'suspended' && ctx.resume) { ctx.resume(); }
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.type = type || 'sine';
+      o.frequency.value = freq;
+      var v = vol || 0.08;
+      var t = ctx.currentTime;
+      g.gain.setValueAtTime(v, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start(t);
+      o.stop(t + dur + 0.03);
+    } catch (e) {}
+  }
+
+  function sfxFound() {
+    tone(680, 0.12, 'sine', 0.09);
+    setTimeout(function () { tone(1020, 0.16, 'sine', 0.09); }, 85);
+  }
+
+  function sfxWrong() {
+    tone(170, 0.16, 'square', 0.05);
+  }
+
+  function sfxHint() {
+    tone(900, 0.1, 'triangle', 0.07);
+    setTimeout(function () { tone(1250, 0.12, 'triangle', 0.06); }, 80);
+  }
+
+  function sfxComplete() {
+    var notes = [523, 659, 784, 1046];
+    for (var i = 0; i < notes.length; i++) {
+      (function (f, i2) {
+        setTimeout(function () { tone(f, 0.22, 'sine', 0.09); }, i2 * 130);
+      })(notes[i], i);
+    }
+  }
+
+  /* =========================================================
+     STATE
+     ========================================================= */
+  var state = {
+    level: 1,
+    unlocked: 1,
+    totalScore: 0,
+    bestScore: 0,
+    sound: true,
+    size: 0,
+    grid: [],
+    cellEls: [],
+    words: [],
+    category: '',
+    selCells: [],
+    anchor: null,
+    hintsLeft: MAX_HINTS,
+    hintsUsed: 0,
+    levelScore: 0,
+    foundCount: 0,
+    startTime: 0,
+    pausedTotal: 0,
+    pausedStart: 0,
+    paused: false,
+    playing: false,
+    completed: false,
+    curR: 0,
+    curC: 0,
+    cursorEl: null,
+    showCursor: false
+  };
+
+  var gridEl = null;
+  var wrapEl = null;
+  var selLineEl = null;
+  var wordListEl = null;
+  var boardAreaEl = null;
+
+  var dragging = false;
+  var dragStart = null;
+  var lastTouchTime = 0;
+  var focusMode = 'grid';
+  var openModalEl = null;
+  var hintLock = false;
+  var resizeTimer = null;
+
+  /* =========================================================
+     LEVEL CONFIG + GENERATION
+     ========================================================= */
+  function getConfig(n) {
+    var size, words, dirs;
+    if (n <= 5)       { size = 8;  words = 4;  dirs = ['E', 'S']; }
+    else if (n <= 10) { size = 8;  words = 5;  dirs = ['E', 'S', 'W', 'N']; }
+    else if (n <= 16) { size = 9;  words = 6;  dirs = ['E', 'S', 'W', 'N', 'SE', 'NW']; }
+    else if (n <= 22) { size = 10; words = 7;  dirs = ALL_DIRS; }
+    else if (n <= 30) { size = 11; words = 8;  dirs = ALL_DIRS; }
+    else if (n <= 40) { size = 12; words = 9;  dirs = ALL_DIRS; }
+    else if (n <= 50) { size = 13; words = 10; dirs = ALL_DIRS; }
+    else              { size = 14; words = 11; dirs = ALL_DIRS; }
+
+    if (n > 10 && n % 5 === 0) words += 1;
+    return { size: size, words: words, dirs: dirs };
+  }
+
+  function findSpots(grid, size, word, dirs) {
+    var spots = [];
+    var L = word.length;
+    for (var di = 0; di < dirs.length; di++) {
+      var d = dirs[di];
+      var v = DIRV[d];
+      for (var r = 0; r < size; r++) {
+        for (var c = 0; c < size; c++) {
+          var er = r + v[0] * (L - 1);
+          var ec = c + v[1] * (L - 1);
+          if (er < 0 || er >= size || ec < 0 || ec >= size) continue;
+          var fits = true;
+          for (var k = 0; k < L; k++) {
+            var ch = grid[r + v[0] * k][c + v[1] * k];
+            if (ch !== '' && ch !== word.charAt(k)) { fits = false; break; }
+          }
+          if (fits) spots.push({ r: r, c: c, d: d });
+        }
+      }
+    }
+    return spots;
+  }
+
+  function placeAll(words, size, dirs) {
+    for (var attempt = 0; attempt < 45; attempt++) {
+      var grid = [];
+      var r, c;
+      for (r = 0; r < size; r++) {
+        var row = [];
+        for (c = 0; c < size; c++) row.push('');
+        grid.push(row);
+      }
+      var order = words.slice().sort(function (a, b) { return b.length - a.length; });
+      var placed = [];
+      var ok = true;
+
+      for (var i = 0; i < order.length; i++) {
+        var w = order[i];
+        var spots = findSpots(grid, size, w, dirs);
+        if (!spots.length) { ok = false; break; }
+        var s = spots[Math.floor(Math.random() * spots.length)];
+        var v = DIRV[s.d];
+        var cells = [];
+        for (var k = 0; k < w.length; k++) {
+          var rr = s.r + v[0] * k;
+          var cc = s.c + v[1] * k;
+          grid[rr][cc] = w.charAt(k);
+          cells.push({ r: rr, c: cc });
+        }
+        placed.push({ word: w, cells: cells });
+      }
+
+      if (ok) {
+        for (var r2 = 0; r2 < size; r2++) {
+          for (var c2 = 0; c2 < size; c2++) {
+            if (grid[r2][c2] === '') grid[r2][c2] = randLetter();
+          }
+        }
+        return { grid: grid, placed: placed };
+      }
+    }
+    return null;
+  }
+
+  function generateLevel(n) {
+    var cfg = getConfig(n);
+    var cats = Object.keys(BANKS);
+    var cat = cats[(n - 1) % cats.length];
+    var pool = BANKS[cat].filter(function (w) {
+      return w.length <= cfg.size && w.length >= 3;
+    });
+    if (!pool.length) pool = ['CAT', 'DOG', 'SUN'];
+
+    pool = shuffle(pool.slice());
+    var chosen = pool.slice(0, Math.min(cfg.words, pool.length));
+    var res = null;
+    var guard = 0;
+
+    while (!res && guard++ < 8) {
+      res = placeAll(chosen, cfg.size, cfg.dirs);
+      if (!res) {
+        chosen.sort(function (a, b) { return b.length - a.length; });
+        chosen.shift();
+        if (chosen.length < 3) break;
+      }
+    }
+
+    if (!res && chosen.length >= 3) res = placeAll(chosen, cfg.size, cfg.dirs);
+
+    if (!res) {
+      var small = pool.slice().sort(function (a, b) { return a.length - b.length; }).slice(0, 3);
+      res = placeAll(small, cfg.size, cfg.dirs);
+      chosen = small;
+    }
+
+    if (!res) {
+      var g = [];
+      for (var r = 0; r < cfg.size; r++) {
+        var row = [];
+        for (var c = 0; c < cfg.size; c++) row.push(randLetter());
+        g.push(row);
+      }
+      var w0 = 'CAT';
+      var cells0 = [];
+      for (var i2 = 0; i2 < w0.length; i2++) {
+        g[0][i2] = w0.charAt(i2);
+        cells0.push({ r: 0, c: i2 });
+      }
+      res = { grid: g, placed: [{ word: w0, cells: cells0 }] };
+    }
+
+    return {
+      size: cfg.size,
+      category: cat,
+      grid: res.grid,
+      placed: res.placed
+    };
+  }
+
+  /* =========================================================
+     RENDERING
+     ========================================================= */
+  function renderGrid() {
+    var n = state.size;
+    gridEl.innerHTML = '';
+    state.cellEls = [];
+    var frag = document.createDocumentFragment();
+    for (var r = 0; r < n; r++) {
+      var rowEls = [];
+      for (var c = 0; c < n; c++) {
+        var d = document.createElement('div');
+        d.className = 'cell';
+        d.setAttribute('data-r', r);
+        d.setAttribute('data-c', c);
+        d.textContent = state.grid[r][c];
+        frag.appendChild(d);
+        rowEls.push(d);
+      }
+      state.cellEls.push(rowEls);
+    }
+    gridEl.appendChild(frag);
+    state.cursorEl = null;
+  }
+
+  function renderWords() {
+    wordListEl.innerHTML = '';
+    for (var i = 0; i < state.words.length; i++) {
+      var w = state.words[i];
+      var d = document.createElement('div');
+      d.className = 'word';
+      d.setAttribute('data-i', i);
+      var dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = w.color;
+      var txt = document.createElement('span');
+      txt.className = 'txt';
+      txt.textContent = w.word;
+      d.appendChild(dot);
+      d.appendChild(txt);
+      wordListEl.appendChild(d);
+      w.el = d;
+    }
+  }
+
+  function layoutGrid() {
+    if (!state.size || !state.cellEls.length) return;
+
+    var n = state.size;
+    var aw = boardAreaEl.clientWidth;
+    var ah = boardAreaEl.clientHeight;
+    if (!aw || !ah) return;
+
+    var s = Math.floor(Math.min(aw, ah));
+    if (!isFinite(s) || s < 80) s = 240;
+
+    var gap = Math.max(2, Math.round(s / n * 0.09));
+    var cell = Math.floor((s - gap * (n - 1)) / n);
+    if (cell < 8) cell = 8;
+    var total = cell * n + gap * (n - 1);
+
+    wrapEl.style.width = total + 'px';
+    wrapEl.style.height = total + 'px';
+    gridEl.style.width = total + 'px';
+    gridEl.style.height = total + 'px';
+
+    var fontPx = Math.round(cell * 0.5);
+    var radiusPx = Math.round(cell * 0.22);
+
+    for (var r = 0; r < n; r++) {
+      for (var c = 0; c < n; c++) {
+        var el = state.cellEls[r][c];
+        if (!el) continue;
+        el.style.width = cell + 'px';
+        el.style.height = cell + 'px';
+        el.style.left = (c * (cell + gap)) + 'px';
+        el.style.top = (r * (cell + gap)) + 'px';
+        el.style.fontSize = fontPx + 'px';
+        el.style.borderRadius = radiusPx + 'px';
+      }
+    }
+    renderSel();
+  }
+
+  function renderSel() {
+    if (!state.cellEls.length) return;
+    var n = state.size, r, c, el;
+
+    for (r = 0; r < n; r++) {
+      for (c = 0; c < n; c++) {
+        el = state.cellEls[r][c];
+        if (el && el.classList.contains('sel')) el.classList.remove('sel');
+      }
+    }
+
+    var cells = state.selCells;
+    for (var i = 0; i < cells.length; i++) {
+      el = state.cellEls[cells[i].r] && state.cellEls[cells[i].r][cells[i].c];
+      if (el) el.classList.add('sel');
+    }
+
+    if (cells.length >= 2) {
+      var a = state.cellEls[cells[0].r][cells[0].c];
+      var b = state.cellEls[cells[cells.length - 1].r][cells[cells.length - 1].c];
+      if (a && b) {
+        var wr = wrapEl.getBoundingClientRect();
+        var ar = a.getBoundingClientRect();
+        var br = b.getBoundingClientRect();
+        var x1 = ar.left - wr.left + ar.width / 2;
+        var y1 = ar.top - wr.top + ar.height / 2;
+        var x2 = br.left - wr.left + br.width / 2;
+        var y2 = br.top - wr.top + br.height / 2;
+        var dx = x2 - x1, dy = y2 - y1;
+        var len = Math.sqrt(dx * dx + dy * dy);
+        var ang = Math.atan2(dy, dx);
+        selLineEl.style.display = 'block';
+        selLineEl.style.width = len + 'px';
+        selLineEl.style.left = x1 + 'px';
+        selLineEl.style.top = (y1 - 5) + 'px';
+        selLineEl.style.transform = 'rotate(' + ang + 'rad)';
+        return;
+      }
+    }
+    selLineEl.style.display = 'none';
+  }
+
+  function setSel(cells) {
+    state.selCells = cells || [];
+    renderSel();
+  }
+
+  function clearSel() {
+    setSel([]);
+  }
+
+  function updateCursor() {
+    if (state.cursorEl) {
+      state.cursorEl.classList.remove('cursor');
+      state.cursorEl = null;
+    }
+    if (!state.showCursor || !state.cellEls.length) return;
+    var el = state.cellEls[state.curR] && state.cellEls[state.curR][state.curC];
+    if (el) {
+      el.classList.add('cursor');
+      state.cursorEl = el;
+    }
+  }
+
+  function updateHUD() {
+    $('statLevel').textContent = String(state.level);
+    $('statScore').textContent = String(num(state.totalScore));
+    $('statBest').textContent = String(num(state.bestScore));
+    $('statCat').textContent = state.category || '-';
+    $('hintCount').textContent = String(state.hintsLeft);
+
+    var hintBtn = $('btnHint');
+    hintBtn.disabled = !state.playing || state.hintsLeft <= 0 || state.paused;
+
+    var shufBtn = $('btnShuffle');
+    shufBtn.disabled = !state.playing || state.foundCount > 0 || state.paused;
+  }
+
+  function updateSoundBtn() {
+    $('btnSound').innerHTML = state.sound ? '&#128266;' : '&#128263;';
+    var ps = $('btnPauseSound');
+    if (ps) ps.textContent = state.sound ? 'Sound: On' : 'Sound: Off';
+  }
+
+  /* =========================================================
+     SELECTION LOGIC
+     ========================================================= */
+  function lineCells(a, b) {
+    if (!a || !b) return null;
+    var dr = b.r - a.r;
+    var dc = b.c - a.c;
+    if (dr === 0 && dc === 0) return null;
+    if (!(dr === 0 || dc === 0 || Math.abs(dr) === Math.abs(dc))) return null;
+    var steps = Math.max(Math.abs(dr), Math.abs(dc));
+    var sr = dr === 0 ? 0 : (dr > 0 ? 1 : -1);
+    var sc = dc === 0 ? 0 : (dc > 0 ? 1 : -1);
+    var out = [];
+    for (var i = 0; i <= steps; i++) {
+      out.push({ r: a.r + sr * i, c: a.c + sc * i });
+    }
+    return out;
+  }
+
+  function cellFromPoint(x, y) {
+    var el = document.elementFromPoint(x, y);
+    var guard = 0;
+    while (el && guard++ < 8) {
+      if (el.getAttribute && el.getAttribute('data-r') !== null && gridEl.contains(el)) {
+        return el;
+      }
+      el = el.parentNode;
+    }
+    return null;
+  }
+
+  function evaluate(cells) {
+    if (!cells || cells.length < 2) { clearSel(); return; }
+    var str = '';
+    for (var i = 0; i < cells.length; i++) {
+      str += state.grid[cells[i].r][cells[i].c];
+    }
+    var rev = str.split('').reverse().join('');
+    var idx = -1;
+    for (var j = 0; j < state.words.length; j++) {
+      var w = state.words[j];
+      if (w.found) continue;
+      if (w.word === str || w.word === rev) { idx = j; break; }
+    }
+    if (idx >= 0) {
+      markFound(idx, cells);
+    } else {
+      flashWrong(cells);
+    }
+  }
+
+  function markFound(idx, cells) {
+    var w = state.words[idx];
+    if (!w || w.found) return;
+    w.found = true;
+    state.foundCount++;
+
+    var pts = num(w.word.length * 10);
+    state.levelScore = num(state.levelScore) + pts;
+    state.totalScore = num(state.totalScore) + pts;
+
+    for (var i = 0; i < cells.length; i++) {
+      var el = state.cellEls[cells[i].r][cells[i].c];
+      if (el) {
+        el.classList.remove('sel');
+        el.classList.add('found');
+        el.classList.add('pop');
+        el.style.background = w.color;
+        el.style.color = '#141433';
+        (function (node) {
+          setTimeout(function () { node.classList.remove('pop'); }, 340);
+        })(el);
+      }
+    }
+
+    if (w.el) w.el.classList.add('done');
+
+    state.selCells = [];
+    renderSel();
+    updateHUD();
+    saveProgress();
+    sfxFound();
+
+    var allFound = true;
+    for (var k = 0; k < state.words.length; k++) {
+      if (!state.words[k].found) { allFound = false; break; }
+    }
+    if (allFound) {
+      setTimeout(levelComplete, 520);
+    }
+  }
+
+  function flashWrong(cells) {
+    for (var i = 0; i < cells.length; i++) {
+      var el = state.cellEls[cells[i].r][cells[i].c];
+      if (el) el.classList.add('wrong');
+    }
+    sfxWrong();
+    setTimeout(function () {
+      for (var j = 0; j < cells.length; j++) {
+        var e2 = state.cellEls[cells[j].r][cells[j].c];
+        if (e2) e2.classList.remove('wrong');
+      }
+    }, 380);
+    clearSel();
+  }
+
+  function onDown(r, c) {
+    if (!state.playing || state.paused) return;
+    dragging = true;
+    dragStart = { r: r, c: c };
+    setSel([{ r: r, c: c }]);
+  }
+
+  function onMove(r, c) {
+    if (!dragging || !dragStart) return;
+    var line = lineCells(dragStart, { r: r, c: c });
+    if (line) setSel(line);
+  }
+
+  function onUp() {
+    if (!dragging) return;
+    dragging = false;
+
+    var cells = state.selCells.slice();
+    if (cells.length >= 2) {
+      state.anchor = null;
+      evaluate(cells);
+      return;
+    }
+
+    if (cells.length === 1) {
+      var c = cells[0];
+      if (state.anchor) {
+        var a = state.anchor;
+        state.anchor = null;
+        if (a.r === c.r && a.c === c.c) {
+          clearSel();
+        } else {
+          var line = lineCells(a, c);
+          if (line && line.length >= 2) {
+            evaluate(line);
+          } else {
+            state.anchor = { r: c.r, c: c.c };
+            setSel([c]);
+          }
+        }
+      } else {
+        state.anchor = { r: c.r, c: c.c };
+        setSel([c]);
+      }
+    }
+  }
+
+  function activateCell(r, c) {
+    if (!state.playing || state.paused) return;
+    var cell = { r: r, c: c };
+    if (state.anchor) {
+      var a = state.anchor;
+      if (a.r === r && a.c === c) {
+        state.anchor = null;
+        clearSel();
+        return;
+      }
+      state.anchor = null;
+      var line = lineCells(a, cell);
+      if (line && line.length >= 2) {
+        evaluate(line);
+      } else {
+        state.anchor = cell;
+        setSel([cell]);
+      }
+    } else {
+      state.anchor = cell;
+      setSel([cell]);
+    }
+  }
+
+  /* =========================================================
+     LEVEL FLOW
+     ========================================================= */
+  function loadLevel(n) {
+    n = clampInt(n, 1, LEVEL_COUNT);
+    state.level = n;
+
+    var built = generateLevel(n);
+    state.size = built.size;
+    state.grid = built.grid;
+    state.category = built.category;
+
+    state.words = [];
+    for (var i = 0; i < built.placed.length; i++) {
+      state.words.push({
+        word: built.placed[i].word,
+        cells: built.placed[i].cells,
+        found: false,
+        color: COLORS[i % COLORS.length],
+        el: null
+      });
+    }
+
+    state.hintsLeft = MAX_HINTS;
+    state.hintsUsed = 0;
+    state.levelScore = 0;
+    state.foundCount = 0;
+    state.selCells = [];
+    state.anchor = null;
+    state.dragging = false;
+    dragging = false;
+    state.paused = false;
+    state.pausedTotal = 0;
+    state.pausedStart = 0;
+    state.startTime = Date.now();
+    state.playing = true;
+    state.completed = false;
+    state.curR = 0;
+    state.curC = 0;
+    state.cursorEl = null;
+    state.showCursor = false;
+
+    renderGrid();
+    renderWords();
+    updateHUD();
+    updateSoundBtn();
+    layoutGrid();
+    setTimeout(layoutGrid, 80);
+    saveProgress();
+  }
+
+  function restartLevel() {
+    closeModal();
+    loadLevel(state.level);
+  }
+
+  function nextLevel() {
+    closeModal();
+    if (state.level >= LEVEL_COUNT) {
+      openLevels();
+    } else {
+      loadLevel(state.level + 1);
+    }
+  }
+
+  function getElapsed() {
+    if (!state.startTime) return 0;
+    var t = Date.now() - state.startTime - state.pausedTotal;
+    if (state.paused && state.pausedStart) t -= (Date.now() - state.pausedStart);
+    if (!isFinite(t) || t < 0) t = 0;
+    return t / 1000;
+  }
+
+  function levelComplete() {
+    if (state.completed) return;
+    state.completed = true;
+    state.playing = false;
+
+    var elapsed = getElapsed();
+    var wordScore = num(state.levelScore);
+    var timeBonus = Math.max(0, Math.min(200, 200 - Math.floor(elapsed) * 2));
+    var hintBonus = (state.hintsUsed === 0) ? 150 : 0;
+    var levelTotal = num(wordScore + timeBonus + hintBonus);
+
+    state.totalScore = num(state.totalScore) + num(timeBonus + hintBonus);
+    state.levelScore = levelTotal;
+
+    if (levelTotal > num(state.bestScore)) state.bestScore = levelTotal;
+
+    if (state.level + 1 <= LEVEL_COUNT && state.unlocked < state.level + 1) {
+      state.unlocked = state.level + 1;
+    }
+
+    var stars = 1;
+    if (state.hintsUsed === 0 && elapsed < 120) stars = 3;
+    else if (state.hintsUsed <= 1) stars = 2;
+
+    var starStr = '';
+    for (var i = 0; i < 3; i++) starStr += (i < stars ? '\u2605' : '\u2606');
+
+    $('ccStars').textContent = starStr;
+    $('ccWords').textContent = String(wordScore);
+    $('ccTime').textContent = '+' + String(timeBonus);
+    $('ccHint').textContent = '+' + String(hintBonus);
+    $('ccTotal').textContent = String(levelTotal);
+
+    var nextBtn = $('ccNext');
+    nextBtn.textContent = (state.level >= LEVEL_COUNT) ? 'Levels' : 'Next Level';
+
+    updateHUD();
+    saveProgress();
+    sfxComplete();
+    openModal('modalComplete');
+  }
+
+  /* =========================================================
+     HINT / SHUFFLE
+     ========================================================= */
+  function useHint() {
+    if (!state.playing || state.paused || hintLock) return;
+    if (state.hintsLeft <= 0) return;
+
+    var remaining = [];
+    for (var i = 0; i < state.words.length; i++) {
+      if (!state.words[i].found) remaining.push(state.words[i]);
+    }
+    if (!remaining.length) return;
+
+    var w = remaining[Math.floor(Math.random() * remaining.length)];
+    if (!w.cells || !w.cells.length) return;
+
+    var p = w.cells[0];
+    var el = state.cellEls[p.r] && state.cellEls[p.r][p.c];
+    if (!el) return;
+
+    state.hintsLeft--;
+    state.hintsUsed++;
+    hintLock = true;
+    setTimeout(function () { hintLock = false; }, 1500);
+
+    el.classList.add('hintPulse');
+    setTimeout(function () { el.classList.remove('hintPulse'); }, 2200);
+
+    sfxHint();
+    updateHUD();
+  }
+
+  function shuffleLevel() {
+    if (!state.playing || state.paused) return;
+    if (state.foundCount > 0) return;
+    loadLevel(state.level);
+  }
+
+  /* =========================================================
+     MODALS
+     ========================================================= */
+  function openModal(id) {
+    var m = $(id);
+    if (!m) return;
+    m.classList.add('show');
+    openModalEl = m;
+    setTimeout(function () {
+      var b = m.querySelector('button:not([disabled])');
+      if (b && b.focus) b.focus();
+    }, 40);
+  }
+
+  function closeModal() {
+    if (!openModalEl) return;
+    openModalEl.classList.remove('show');
+    openModalEl = null;
+  }
+
+  function openLevels() {
+    var g = $('levelGrid');
+    g.innerHTML = '';
+    for (var i = 1; i <= LEVEL_COUNT; i++) {
+      (function (n) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'level-btn';
+        if (n > state.unlocked) {
+          b.className += ' locked';
+          b.disabled = true;
+        }
+        if (n === state.level) b.className += ' current';
+        b.textContent = String(n);
+        b.addEventListener('click', function () {
+          closeModal();
+          loadLevel(n);
+        });
+        g.appendChild(b);
+      })(i);
+    }
+    openModal('modalLevels');
+  }
+
+  function pauseGame() {
+    if (!state.playing || state.paused) return;
+    state.paused = true;
+    state.pausedStart = Date.now();
+    updateHUD();
+    openModal('modalPause');
+  }
+
+  function resumeGame() {
+    if (!state.paused) { closeModal(); return; }
+    state.pausedTotal += Date.now() - state.pausedStart;
+    state.pausedStart = 0;
+    state.paused = false;
+    closeModal();
+    updateHUD();
+  }
+
+  /* =========================================================
+     SAVE / LOAD
+     ========================================================= */
+  function saveProgress() {
+    store.set('unlocked', state.unlocked);
+    store.set('level', state.level);
+    store.set('best', num(state.bestScore));
+    store.set('total', num(state.totalScore));
+    store.set('sound', state.sound);
+  }
+
+  function loadSave() {
+    state.unlocked = clampInt(store.get('unlocked', 1), 1, LEVEL_COUNT);
+    state.level = clampInt(store.get('level', 1), 1, state.unlocked);
+    state.bestScore = num(store.get('best', 0));
+    state.totalScore = num(store.get('total', 0));
+    var s = store.get('sound', true);
+    state.sound = (s === false) ? false : true;
+  }
+
+  /* =========================================================
+     TV / KEYBOARD FOCUS
+     ========================================================= */
+  function uiButtons() {
+    var all = document.querySelectorAll('#hud button, #controls button');
+    var out = [];
+    for (var i = 0; i < all.length; i++) {
+      var b = all[i];
+      if (b.disabled) continue;
+      if (b.offsetParent === null && b.style.display !== 'block') {
+        // still include if it has size
+        if (b.offsetWidth === 0 && b.offsetHeight === 0) continue;
+      }
+      out.push(b);
+    }
+    return out;
+  }
+
+  function moveUiFocus(dir) {
+    var list = uiButtons();
+    if (!list.length) return;
+    var i = list.indexOf(document.activeElement);
+    if (i < 0) i = 0;
+    else i = (i + dir + list.length) % list.length;
+    list[i].focus();
+  }
+
+  function moveFocusIn(container, dir) {
+    var list = container.querySelectorAll('button:not([disabled])');
+    if (!list.length) return;
+    var arr = [];
+    for (var i = 0; i < list.length; i++) arr.push(list[i]);
+    var idx = arr.indexOf(document.activeElement);
+    if (idx < 0) idx = 0;
+    else idx = (idx + dir + arr.length) % arr.length;
+    arr[idx].focus();
+  }
+
+  function setFocusMode(m) {
+    focusMode = m;
+    if (m === 'ui') {
+      var list = uiButtons();
+      if (list.length) list[0].focus();
+    } else {
+      if (document.activeElement && document.activeElement.blur) {
+        document.activeElement.blur();
+      }
+      state.showCursor = true;
+      updateCursor();
+    }
+  }
+
+  /* =========================================================
+     EVENTS
+     ========================================================= */
+  function attachEvents() {
+
+    /* ---- Buttons ---- */
+    $('btnSound').addEventListener('click', function () {
+      state.sound = !state.sound;
+      updateSoundBtn();
+      saveProgress();
+      if (state.sound) tone(880, 0.08, 'sine', 0.06);
+    });
+
+    $('btnPause').addEventListener('click', pauseGame);
+    $('btnHome').addEventListener('click', openLevels);
+    $('btnHint').addEventListener('click', useHint);
+    $('btnShuffle').addEventListener('click', shuffleLevel);
+    $('btnRestart').addEventListener('click', restartLevel);
+    $('btnLevels').addEventListener('click', openLevels);
+
+    $('btnResume').addEventListener('click', resumeGame);
+    $('btnPauseRestart').addEventListener('click', function () {
+      state.paused = false;
+      restartLevel();
+    });
+    $('btnPauseSound').addEventListener('click', function () {
+      state.sound = !state.sound;
+      updateSoundBtn();
+      saveProgress();
+    });
+    $('btnPauseLevels').addEventListener('click', function () {
+      state.paused = false;
+      closeModal();
+      updateHUD();
+      openLevels();
+    });
+
+    $('ccReplay').addEventListener('click', function () {
+      closeModal();
+      loadLevel(state.level);
+    });
+    $('ccNext').addEventListener('click', nextLevel);
+    $('btnCloseLevels').addEventListener('click', function () {
+      closeModal();
+      updateHUD();
+    });
+
+    /* ---- Touch ---- */
+    gridEl.addEventListener('touchstart', function (e) {
+      if (!state.playing || state.paused) return;
+      var t = e.changedTouches[0];
+      var cell = cellFromPoint(t.clientX, t.clientY);
+      if (!cell) return;
+      e.preventDefault();
+      lastTouchTime = Date.now();
+      onDown(parseInt(cell.getAttribute('data-r'), 10), parseInt(cell.getAttribute('data-c'), 10));
+    }, { passive: false });
+
+    gridEl.addEventListener('touchmove', function (e) {
+      if (!dragging) return;
+      e.preventDefault();
+      var t = e.changedTouches[0];
+      var cell = cellFromPoint(t.clientX, t.clientY);
+      if (cell) {
+        onMove(parseInt(cell.getAttribute('data-r'), 10), parseInt(cell.getAttribute('data-c'), 10));
+      }
+    }, { passive: false });
+
+    gridEl.addEventListener('touchend', function (e) {
+      if (!dragging) return;
+      e.preventDefault();
+      lastTouchTime = Date.now();
+      onUp();
+    }, { passive: false });
+
+    gridEl.addEventListener('touchcancel', function () {
+      if (dragging) { dragging = false; clearSel(); }
+    }, { passive: false });
+
+    /* ---- Mouse ---- */
+    gridEl.addEventListener('mousedown', function (e) {
+      if (Date.now() - lastTouchTime < 900) return;
+      if (!state.playing || state.paused) return;
+      var cell = cellFromPoint(e.clientX, e.clientY);
+      if (!cell) return;
+      e.preventDefault();
+      focusMode = 'grid';
+      onDown(parseInt(cell.getAttribute('data-r'), 10), parseInt(cell.getAttribute('data-c'), 10));
+    });
+
+    document.addEventListener('mousemove', function (e) {
+      if (!dragging) return;
+      if (Date.now() - lastTouchTime < 900) return;
+      var cell = cellFromPoint(e.clientX, e.clientY);
+      if (cell) {
+        onMove(parseInt(cell.getAttribute('data-r'), 10), parseInt(cell.getAttribute('data-c'), 10));
+      }
+    });
+
+    document.addEventListener('mouseup', function () {
+      if (Date.now() - lastTouchTime < 900) return;
+      if (dragging) onUp();
+    });
+
+    document.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+    });
+
+    /* ---- Block scrolling while dragging ---- */
+    document.addEventListener('touchmove', function (e) {
+      if (dragging && e.cancelable) e.preventDefault();
+    }, { passive: false });
+
+    /* ---- Resize ---- */
+    window.addEventListener('resize', function () {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(layoutGrid, 80);
+    });
+
+    window.addEventListener('orientationchange', function () {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function () {
+        layoutGrid();
+        setTimeout(layoutGrid, 250);
+      }, 120);
+    });
+
+    /* ---- Focus tracking ---- */
+    document.addEventListener('focusin', function (e) {
+      var t = e.target;
+      if (t && t.tagName === 'BUTTON' && !openModalEl) {
+        focusMode = 'ui';
+      }
+    });
+
+    /* ---- Keyboard / TV remote ---- */
+    document.addEventListener('keydown', function (e) {
+      var code = e.keyCode || e.which;
+      var isLeft = (code === 37);
+      var isUp = (code === 38);
+      var isRight = (code === 39);
+      var isDown = (code === 40);
+      var isEnter = (code === 13 || code === 32);
+      var isBack = (code === 27 || code === 8 || code === 4);
+
+      /* Modal open */
+      if (openModalEl) {
+        if (isBack) {
+          e.preventDefault();
+          closeModal();
+          updateHUD();
+          return;
+        }
+        if (isLeft || isUp) {
+          e.preventDefault();
+          moveFocusIn(openModalEl, -1);
+          return;
+        }
+        if (isRight || isDown) {
+          e.preventDefault();
+          moveFocusIn(openModalEl, 1);
+          return;
+        }
+        return;
+      }
+
+      /* Back / cancel */
+      if (isBack) {
+        if (state.anchor || state.selCells.length) {
+          state.anchor = null;
+          clearSel();
+        } else if (focusMode === 'ui') {
+          setFocusMode('grid');
+        }
+        e.preventDefault();
+        return;
+      }
+
+      /* UI navigation mode */
+      if (focusMode === 'ui') {
+        if (isLeft) { e.preventDefault(); moveUiFocus(-1); return; }
+        if (isRight || isDown) { e.preventDefault(); moveUiFocus(1); return; }
+        if (isUp) { e.preventDefault(); setFocusMode('grid'); return; }
+        return;
+      }
+
+      /* Grid navigation mode */
+      if (isLeft || isRight || isUp || isDown) {
+        e.preventDefault();
+        state.showCursor = true;
+        var r = state.curR;
+        var c = state.curC;
+        if (isLeft) c--;
+        else if (isRight) c++;
+        else if (isUp) r--;
+        else r++;
+
+        if (r < 0 || r >= state.size || c < 0 || c >= state.size) {
+          if (isDown || isRight) setFocusMode('ui');
+          return;
+        }
+        state.curR = r;
+        state.curC = c;
+        updateCursor();
+        return;
+      }
+
+      if (isEnter) {
+        e.preventDefault();
+        state.showCursor = true;
+        updateCursor();
+        activateCell(state.curR, state.curC);
+        return;
+      }
+    });
+  }
+
+  /* =========================================================
+     INIT
+     ========================================================= */
+  function init() {
+    gridEl = $('grid');
+    wrapEl = $('gridWrap');
+    selLineEl = $('selLine');
+    wordListEl = $('wordList');
+    boardAreaEl = $('boardArea');
+
+    loadSave();
+    attachEvents();
+    updateSoundBtn();
+    loadLevel(state.level);
+
+    window.addEventListener('load', function () {
+      layoutGrid();
+      setTimeout(layoutGrid, 120);
+    });
+
+    setTimeout(function () {
+      layoutGrid();
+      setTimeout(layoutGrid, 300);
+    }, 60);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+</script>
+</body>
+</html>
